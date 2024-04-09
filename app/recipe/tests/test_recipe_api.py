@@ -138,7 +138,6 @@ class PrivateRecipeApiTests(TestCase):
         self.assertEqual(recipe.link, original_link)
         self.assertEqual(recipe.user, self.user)
 
-
     def test_full_update(self):
         '''Test full update of recipe.'''
         recipe = create_recipe(
