@@ -124,7 +124,7 @@ class PrivateRecipeApiTests(TestCase):
 
     def test_partial_update(self):
         '''Test partial update of a recipe.'''
-        original_link = 'http://example.com/recipe.pdf'
+        original_link = 'https://example.com/recipe.pdf'
         recipe = create_recipe(
             user=self.user,
             title='Sample recipe title',
@@ -146,14 +146,14 @@ class PrivateRecipeApiTests(TestCase):
         recipe = create_recipe(
             user=self.user,
             title='Sample recipe title',
-            link='http://example.com/recipe.pdf',
+            link='https://example.com/recipe.pdf',
             description='Sample recipe description',
         )
 
         payload = {
             'title': 'New recipe title',
-            'link': 'http://example.com/recipe.pdf',
-            'description': 'Sample recipe description',
+            'link': 'https://example.com/new-recipe.pdf',
+            'description': 'New sample recipe description',
             'time_minutes': 10,
             'price': Decimal('2.50'),
         }
@@ -168,7 +168,7 @@ class PrivateRecipeApiTests(TestCase):
 
     def test_update_user_returns_error(self):
         '''Test changing the recipe user results in an error'''
-        new_user = create_user(email='user2@examole.com', password='test123')
+        new_user = create_user(email='user2@example.com', password='test123')
         recipe = create_recipe(user=self.user)
 
         payload = {'user': new_user.id}
@@ -205,7 +205,7 @@ class PrivateRecipeApiTests(TestCase):
             'title': 'Tom Yam',
             'time_minutes': 40,
             'price': Decimal('2.50'),
-            'tags': [{'name': 'Thai'}, {'name': 'Lunch'}]
+            'tags': [{'name': 'Thai'}, {'name': 'Lunch'}],
         }
         res = self.client.post(RECIPES_URL, payload, format='json')
 
@@ -332,3 +332,48 @@ class PrivateRecipeApiTests(TestCase):
                 user=self.user,
             ).exists()
             self.assertTrue(exists)
+
+    def test_create_ingredient_on_update(self):
+        '''Test creating an ingredient when updating a recipe.'''
+        recipe = create_recipe(user=self.user)
+
+        payload = {'ingredients': [{'name': 'Limes'}]}
+        url = detail_url(recipe.id)
+        res = self.client.patch(url, payload, format='json')
+
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        new_ingredient = Ingredient.objects.get(user=self.user, name='Limes')
+        self.assertIn(new_ingredient, recipe.ingredients.all())
+
+    def test_update_recipe_assign_ingredient(self):
+        '''Test assigning an existing ingredient who updating a recipe.'''
+        ingredient1 = Ingredient.objects.create(user=self.user, name='Pepper')
+        recipe = create_recipe(user=self.user)
+        recipe.ingredients.add(ingredient1)
+
+        ingredient2 = Ingredient.objects.create(user=self.user, name='Chili')
+        payload = {
+            'ingredients': [{'name': 'Chili'}]
+        }
+        url = detail_url(recipe.id)
+        res = self.client.patch(url, payload, format='json')
+
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertIn(ingredient2, recipe.ingredients.all())
+        self.assertNotIn(ingredient1, recipe.ingredients.all())
+
+    def test_clear_recipe_ingredients(self):
+        '''Test cleaning a recipes ingredients.'''
+        ingredient = Ingredient.objects.create(user=self.user, name='Garlic')
+        recipe = create_recipe(user=self.user)
+        recipe.ingredients.add(ingredient)
+
+        payload = {'ingredients': []}
+        url = detail_url(recipe.id)
+        res = self.client.patch(url, payload, format='json')
+
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(recipe.ingredients.count(), 0)
+
+
+
